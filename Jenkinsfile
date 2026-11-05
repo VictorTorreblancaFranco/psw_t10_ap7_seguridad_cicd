@@ -65,6 +65,7 @@ pipeline {
                     docker rm -f "$ZAP_CONTAINER" >/dev/null 2>&1 || true
                     set +e
                     docker run --name "$ZAP_CONTAINER" \
+                      --user root \
                       --network "$NETWORK_NAME" \
                       -v /zap/wrk \
                       "$ZAP_IMAGE" \
