@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules
+frontend/dist
+reports
+docs
+.env
+.env.*
+tmp
+.DS_Store

@@ -1,0 +1,15 @@
+node_modules/
+frontend/dist/
+.env
+.env.local
+coverage/
+.pytest_cache/
+__pycache__/
+*.pyc
+reports/zap/*
+!reports/zap/.gitkeep
+reports/selenium/*
+!reports/selenium/.gitkeep
+tmp/
+.DS_Store
+
