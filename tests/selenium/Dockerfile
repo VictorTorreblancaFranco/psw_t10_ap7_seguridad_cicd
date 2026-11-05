@@ -8,6 +8,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tests
+RUN mkdir -p /reports && chmod 777 /reports
 COPY tests/selenium/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY tests/selenium .

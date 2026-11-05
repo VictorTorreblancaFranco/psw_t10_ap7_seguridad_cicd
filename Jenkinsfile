@@ -66,6 +66,7 @@ pipeline {
                     set +e
                     docker run --name "$ZAP_CONTAINER" \
                       --network "$NETWORK_NAME" \
+                      -v /zap/wrk \
                       "$ZAP_IMAGE" \
                       zap-baseline.py \
                         -t "http://${APP_CONTAINER}:3000" \
@@ -76,7 +77,7 @@ pipeline {
                     zap_status=$?
                     set -e
                     docker cp "$ZAP_CONTAINER:/zap/wrk/." reports/zap
-                    docker rm -f "$ZAP_CONTAINER" >/dev/null
+                    docker rm -vf "$ZAP_CONTAINER" >/dev/null
                     test "$zap_status" -eq 0
                     python3 scripts/validate_zap.py reports/zap/zap-report.json --fail-at High
                     python3 scripts/summarize_zap.py reports/zap/zap-report.json reports/zap/resumen.md
@@ -138,7 +139,7 @@ pipeline {
                 mkdir -p reports
                 docker logs "$APP_CONTAINER" > reports/application.log 2>&1 || true
                 docker rm -f "$APP_CONTAINER" >/dev/null 2>&1 || true
-                docker rm -f "$ZAP_CONTAINER" >/dev/null 2>&1 || true
+                docker rm -vf "$ZAP_CONTAINER" >/dev/null 2>&1 || true
                 docker rm -f "$SELENIUM_CONTAINER" >/dev/null 2>&1 || true
                 docker image rm "$TEST_IMAGE" >/dev/null 2>&1 || true
             '''
