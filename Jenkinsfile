@@ -11,6 +11,8 @@ pipeline {
         APP_IMAGE = "psw-ap7-app:${BUILD_NUMBER}"
         TEST_IMAGE = "psw-ap7-selenium:${BUILD_NUMBER}"
         APP_CONTAINER = "psw-ap7-app-${BUILD_NUMBER}"
+        ZAP_CONTAINER = "psw-ap7-zap-${BUILD_NUMBER}"
+        SELENIUM_CONTAINER = "psw-ap7-selenium-${BUILD_NUMBER}"
         NETWORK_NAME = 'psw-ap7-ci'
         ZAP_IMAGE = 'ghcr.io/zaproxy/zaproxy:stable'
     }
@@ -60,9 +62,10 @@ pipeline {
                 sh '''
                     mkdir -p reports/zap
                     chmod 777 reports/zap
-                    docker run --rm \
+                    docker rm -f "$ZAP_CONTAINER" >/dev/null 2>&1 || true
+                    set +e
+                    docker run --name "$ZAP_CONTAINER" \
                       --network "$NETWORK_NAME" \
-                      -v "$WORKSPACE/reports/zap:/zap/wrk/:rw" \
                       "$ZAP_IMAGE" \
                       zap-baseline.py \
                         -t "http://${APP_CONTAINER}:3000" \
@@ -70,6 +73,11 @@ pipeline {
                         -I \
                         -r zap-report.html \
                         -J zap-report.json
+                    zap_status=$?
+                    set -e
+                    docker cp "$ZAP_CONTAINER:/zap/wrk/." reports/zap
+                    docker rm -f "$ZAP_CONTAINER" >/dev/null
+                    test "$zap_status" -eq 0
                     python3 scripts/validate_zap.py reports/zap/zap-report.json --fail-at High
                     python3 scripts/summarize_zap.py reports/zap/zap-report.json reports/zap/resumen.md
                 '''
@@ -82,11 +90,17 @@ pipeline {
                     mkdir -p reports/selenium
                     chmod 777 reports/selenium
                     docker build -f tests/selenium/Dockerfile -t "$TEST_IMAGE" .
-                    docker run --rm \
+                    docker rm -f "$SELENIUM_CONTAINER" >/dev/null 2>&1 || true
+                    set +e
+                    docker run --name "$SELENIUM_CONTAINER" \
                       --network "$NETWORK_NAME" \
                       -e BASE_URL="http://${APP_CONTAINER}:3000" \
-                      -v "$WORKSPACE/reports/selenium:/reports" \
                       "$TEST_IMAGE"
+                    selenium_status=$?
+                    set -e
+                    docker cp "$SELENIUM_CONTAINER:/reports/." reports/selenium
+                    docker rm -f "$SELENIUM_CONTAINER" >/dev/null
+                    test "$selenium_status" -eq 0
                 '''
             }
             post {
@@ -120,12 +134,15 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
             sh '''
+                mkdir -p reports
                 docker logs "$APP_CONTAINER" > reports/application.log 2>&1 || true
                 docker rm -f "$APP_CONTAINER" >/dev/null 2>&1 || true
+                docker rm -f "$ZAP_CONTAINER" >/dev/null 2>&1 || true
+                docker rm -f "$SELENIUM_CONTAINER" >/dev/null 2>&1 || true
                 docker image rm "$TEST_IMAGE" >/dev/null 2>&1 || true
             '''
+            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
         }
         success {
             echo 'Pipeline DevSecOps completado: ZAP y Selenium aprobados.'
